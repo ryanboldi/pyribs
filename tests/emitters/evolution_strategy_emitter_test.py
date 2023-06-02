@@ -6,7 +6,7 @@ from ribs.archives import GridArchive
 from ribs.emitters import EvolutionStrategyEmitter
 
 RANKER_LIST = ["imp", "2imp", "rd", "2rd", "obj", "2obj"]
-ES_LIST = ["cma_es", "sep_cma_es", "lm_ma_es", "openai_es"]
+ES_LIST = ["cma_es", "sep_cma_es", "lm_ma_es", "openai_es", "xnes"]
 
 @pytest.fixture
 def emitter_fixture(request):

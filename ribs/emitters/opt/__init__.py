@@ -38,6 +38,7 @@ from ribs.emitters.opt._gradient_opt_base import GradientOptBase
 from ribs.emitters.opt._lm_ma_es import LMMAEvolutionStrategy
 from ribs.emitters.opt._openai_es import OpenAIEvolutionStrategy
 from ribs.emitters.opt._sep_cma_es import SeparableCMAEvolutionStrategy
+from ribs.emitters.opt._xnes import ExponentialNaturalEvolutionStrategy
 
 __all__ = [
     "CMAEvolutionStrategy",
@@ -88,10 +89,12 @@ _NAME_TO_ES_MAP = {
     "SeparableCMAEvolutionStrategy": SeparableCMAEvolutionStrategy,
     "LMMAEvolutionStrategy": LMMAEvolutionStrategy,
     "OpenAIEvolutionStrategy": OpenAIEvolutionStrategy,
+    "ExponentialNaturalEvolutionStrategy": ExponentialNaturalEvolutionStrategy,
     "cma_es": CMAEvolutionStrategy,
     "sep_cma_es": SeparableCMAEvolutionStrategy,
     "lm_ma_es": LMMAEvolutionStrategy,
     "openai_es": OpenAIEvolutionStrategy,
+    "xnes": ExponentialNaturalEvolutionStrategy
 }
 
 
