@@ -6,6 +6,7 @@ import numba as nb
 import numpy as np
 from threadpoolctl import threadpool_limits
 
+#I really don't want this to be an import, can it be done with numpy?
 from scipy.linalg import expm
 
 from ribs._utils import readonly
