@@ -7,6 +7,7 @@ import numpy as np
 from threadpoolctl import threadpool_limits
 
 #I really don't want this to be an import, can it be done with numpy?
+from scipy import dot
 from scipy.linalg import expm
 
 from ribs._utils import readonly
@@ -38,7 +39,6 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
             dtype=np.float64):
         self.batch_size = (4 + int(3 * np.log(solution_dim))
                            if batch_size is None else batch_size)
-        self.sigma0 = sigma0
         self.solution_dim = solution_dim
         self.dtype = dtype
         self._rng = np.random.default_rng(seed)
@@ -56,7 +56,7 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
         self.current_eval = None
         self._A = None
         self._invA = None
-        self._center = sigma0
+        self._center = None
 
     def reset(self, x0):
         """Resets the optimizer to start at x0.
@@ -65,7 +65,7 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
             x0 (np.ndarray): Initial mean.
         """
         self.current_eval = 0
-        self.A = np.eye(self.solution_dim) #sqrt of the covariance matrix
+        self._A = np.eye(self.solution_dim) #sqrt of the covariance matrix
         self._invA = np.eye(self.solution_dim) 
         self._center = x0
 
@@ -82,13 +82,6 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
         Returns:
             True if any of the stopping conditions are satisfied.
         """
-        if self.cov.condition_number > 1e14:
-            return True
-
-        # Area of distribution too small.
-        area = self.sigma * np.sqrt(np.max(self.cov.eigenvalues))
-        if area < 1e-11:
-            return True
 
         # Fitness is too flat (only applies if there are at least 2 parents).
         # NOTE: We use norm here because we may have multiple ranking values.
@@ -99,13 +92,13 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
         return False
 
     @staticmethod
-    @nb.jit(nopython=True)
+    #@nb.jit(nopython=True)
     def _transform_and_check_sol(sample, A, center, lower_bounds, upper_bounds):
         """Numba helper for transforming parameters to the solution space.
 
         Numba is important here since we may be resampling multiple times.
         """
-        solutions = (np.dot(A, sample) + center)
+        solutions = np.dot(A, sample) + center
         out_of_bounds = np.logical_or(
             solutions < np.expand_dims(lower_bounds, axis=0),
             solutions > np.expand_dims(upper_bounds, axis=0),
@@ -115,6 +108,8 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
     @staticmethod
     def _convert_base_to_sample(e, invA, center):
         "converting solutions from the solution space back to parameter space"
+        print(f"E SHAPE={e.shape}")
+        print(f"center SHAPE={center.shape}")
         return np.dot(invA, (e - center))
 
     # Limit OpenBLAS to single thread. This is typically faster than
@@ -178,18 +173,19 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
         if num_parents == 0:
             return
 
-        parents = self._convert_base_to_sample(self._solutions[ranking_indices][:num_parents])
+        parents = self._convert_base_to_sample(self._solutions[ranking_indices][:num_parents], self._invA, self._center)
 
+        print(f"PARENT SHAPE={parents.shape}")
         I = np.eye(self.solution_dim)
 
         utilities = [len(parents) - i for i in range(len(parents))] #simply monotonic ranking -> score; not sure about this
         dCenter = np.dot(parents.T, utilities)
-        covGradient = np.dot((np.outer(parents, parents) - I).T, utilities)
+        covGradient = np.dot(np.array([np.outer(p, p) - I for p in parents]).T, utilities)
         covTrace = np.trace(covGradient)
         covGradient -= covTrace / self.solution_dim * I
         dA = 0.5 * (self.scaleLearningRate * covTrace/self.solution_dim * I + self.covLearningRate * covGradient)
         
-        self._center += self.centerLearningRate* np.dot(self._A, dCenter)
+        self._center = self._center + self.centerLearningRate * np.dot(self._A, dCenter)
         self._A = np.dot(self._A, expm(dA))
         self._invA = np.dot(expm(-dA), self._invA)
 
