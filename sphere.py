@@ -60,22 +60,24 @@ emitters = [
         es="xnes",
         x0=np.zeros(100),
         sigma0=0.5,
+        selection_rule="none",
         ranker="imp",
         batch_size=100, #has to be same as popsize
-    ) for _ in range(15)
+    ) for _ in range(5)
 ]
+
+total_itrs = 15_000
 
 from ribs.schedulers import Scheduler
 
 scheduler = Scheduler(archive, emitters, result_archive=result_archive)
 
 
-total_itrs = 1_000
-
 for itr in trange(1, total_itrs + 1, file=sys.stdout, desc='Iterations'):
     solution_batch = scheduler.ask()
     objective_batch, measure_batch = sphere(solution_batch)
-    print(f"SHAPE OF OBJECTIVE BATCH={objective_batch.shape}")
+    #print(f"SHAPE OF OBJECTIVE BATCH={objective_batch.shape}")
+    #print(f"SHAPE OF MEASURE BATCH={measure_batch.shape}")
     scheduler.tell(objective_batch, measure_batch)
 
     # Output progress every 500 iterations or on the final iteration.

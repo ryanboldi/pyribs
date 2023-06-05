@@ -81,7 +81,7 @@ class EvolutionStrategyEmitter(EmitterBase):
         ranker="2imp",
         es="cma_es",
         es_kwargs=None,
-        selection_rule="filter",
+        selection_rule="none",
         restart_rule="no_improvement",
         bounds=None,
         batch_size=None,
@@ -99,7 +99,7 @@ class EvolutionStrategyEmitter(EmitterBase):
             bounds=bounds,
         )
 
-        if selection_rule not in ["mu", "filter"]:
+        if selection_rule not in ["mu", "filter", "none"]:
             raise ValueError(f"Invalid selection_rule {selection_rule}")
         self._selection_rule = selection_rule
 
@@ -244,7 +244,10 @@ class EvolutionStrategyEmitter(EmitterBase):
             measures_batch, status_batch, value_batch, metadata_batch)
 
         # Select the number of parents.
-        num_parents = (new_sols if self._selection_rule == "filter" else
+        if self._selection_rule == "none":
+            num_parents = self._batch_size
+        else:
+            num_parents = (new_sols if self._selection_rule == "filter" else
                        self._batch_size // 2)
 
         # Update Evolution Strategy.

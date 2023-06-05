@@ -108,8 +108,8 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
     @staticmethod
     def _convert_base_to_sample(e, invA, center):
         "converting solutions from the solution space back to parameter space"
-        print(f"E SHAPE={e.shape}")
-        print(f"center SHAPE={center.shape}")
+        #print(f"E SHAPE={e.shape}")
+        #print(f"center SHAPE={center.shape}")
         return np.dot(invA, (e - center))
 
     # Limit OpenBLAS to single thread. This is typically faster than
@@ -172,19 +172,23 @@ class ExponentialNaturalEvolutionStrategy(EvolutionStrategyBase):
 
         if num_parents == 0:
             return
-
+        
         parents = self._convert_base_to_sample(self._solutions[ranking_indices][:num_parents], self._invA, self._center)
 
-        print(f"PARENT SHAPE={parents.shape}")
         I = np.eye(self.solution_dim)
 
-        utilities = [len(parents) - i for i in range(len(parents))] #simply monotonic ranking -> score; not sure about this
+        utilities = np.power(parents.shape[0] - np.arange(parents.shape[0]), 2) #simply monotonic ranking exp -> score; not sure about this
+        #make utitlities sum to 1
+        #print(utilities)
+        utilities = np.array(utilities) / sum(utilities)
+
         dCenter = np.dot(parents.T, utilities)
-        covGradient = np.dot(np.array([np.outer(p, p) - I for p in parents]).T, utilities)
+        #(outer product p,p) -I for p in parents tranposed
+        covGradient = np.dot((np.einsum('ij,ik->ijk', parents, parents) - I).T, utilities)
         covTrace = np.trace(covGradient)
         covGradient -= covTrace / self.solution_dim * I
         dA = 0.5 * (self.scaleLearningRate * covTrace/self.solution_dim * I + self.covLearningRate * covGradient)
-        
+
         self._center = self._center + self.centerLearningRate * np.dot(self._A, dCenter)
         self._A = np.dot(self._A, expm(dA))
         self._invA = np.dot(expm(-dA), self._invA)
